@@ -7,9 +7,10 @@
 - Detect the current project tech stack from repository files.
 - Apply stack-specific setup recipes for `dip`-based development.
 - Bootstrap or update `dip` configuration files (`dip.yml`, compose files, Dockerfiles) with minimal, safe changes.
+- Put newly created supporting development configuration files under `.dockerdev/` while keeping `dip.yml` at the repository root.
 - Provide ready-to-run `dip` commands for setup, shell access, tests, and linting.
 - Require a safety check that local development is not connected to production, staging, or other critical databases and resources.
-- Require the target project's `README.md` to document the exact `dip` commands implemented by the skill.
+- Require the target project's `README.md` to document Dip installation and the exact `dip` commands implemented by the skill.
 - Configure Next.js projects with local Supabase/PostgREST-style services so a fresh checkout can run through `dip provision`.
 - If the project is **Ruby on Rails**, it recommends using [`tramway-skill`](https://github.com/Purple-Magic/tramway-skill/) instead.
 
@@ -42,6 +43,14 @@ Example prompts:
 
 Before the skill runs or documents mutable commands such as provisioning, migrations, seeds, resets, queue workers, or sync jobs, it must check that the development environment uses local containers, local emulators, or local-only placeholder credentials. It must stop and report the risky file, key, or command if it finds production, staging, shared, or unknown databases and external resources.
 
+## Configuration location
+
+When this skill creates new development configuration, it must keep `dip.yml` at the repository root and place supporting generated files under `.dockerdev/`, including `compose.yml`, `Dockerfile.dev`, local env templates, helper config files, and helper scripts. Commands for newly generated config use normal `dip` commands:
+
+```bash
+dip provision
+```
+
 ## Implemented command documentation
 
 When this skill creates or changes a project's `dip` workflow, it must also update that project's `README.md` with the commands it implemented. Depending on the detected stack and generated `dip.yml`, this can include:
@@ -52,3 +61,13 @@ When this skill creates or changes a project's `dip` workflow, it must also upda
 - Package-manager commands such as `dip npm`, `dip pnpm`, or `dip yarn`.
 - Framework or database commands such as `dip next`, `dip manage`, or `dip psql`.
 - Quality commands such as `dip test` and `dip lint` when they are configured.
+
+## Dip installation documentation
+
+When this skill creates or changes a project's `dip` workflow, it must also document how to install Dip on common operating systems:
+
+- macOS: install with Homebrew.
+- Linux: install with Homebrew on Linux or RubyGems.
+- Windows: use WSL2, then follow Linux instructions inside WSL.
+- Any OS with Ruby: install with `gem install dip`.
+- Mention Dip releases as the source for precompiled binaries when package managers are not suitable.

@@ -1,6 +1,6 @@
 ---
 name: dip-skill
-description: Configure or update a project's local development environment with dip. Use when a user asks to set up dip, dipize a project, create or update dip.yml, add Docker Compose/Dockerfile development workflows, verify local development is isolated from critical resources, or provide dip commands for provisioning, shell access, tests, linting, and local services.
+description: Configure or update a project's local development environment with dip. Use when a user asks to set up dip, dipize a project, create or update root dip.yml, add Docker Compose/Dockerfile development workflows under .dockerdev, verify local development is isolated from critical resources, or provide dip commands for provisioning, shell access, tests, linting, and local services.
 metadata:
   short-description: Configure local development with dip
 ---
@@ -48,11 +48,31 @@ Respond with:
 ## Recipe execution policy
 
 - Before running provisioning, migrations, seed tasks, or any command that can mutate data, complete the critical-resource safety check below.
+- Put newly created development configuration files under `.dockerdev/`, except `dip.yml`, which must stay at the repository root.
 - Prefer updating existing `dip.yml` / compose files over replacing them.
 - Reuse existing service names and ports when possible.
 - Avoid destructive edits.
 - After changes, provide exact `dip` commands for provisioning and daily workflow.
 - Update the target project's `README.md` with the `dip` commands this skill implemented or changed.
+- Update the target project's `README.md` with OS-specific Dip installation instructions.
+
+## Mandatory configuration placement
+
+When creating new development configuration, place `dip.yml` at the repository root and place all supporting development configuration files in `.dockerdev/`.
+
+Generated files include:
+
+- `dip.yml`
+- `.dockerdev/compose.yml`
+- `.dockerdev/Dockerfile.dev`
+- `.dockerdev/.env.example` and `.dockerdev/.env` when local env templates or local-only defaults are needed
+- Any helper SQL, bootstrap, development-only config files, or scripts created for the `dip` workflow
+
+Do not create new root-level `docker-compose.yml`, `compose.yml`, `Dockerfile.dev`, `.env.example`, or helper script files for this workflow. If a project already has root-level supporting development config, merge with or reference it only when that is safer than duplicating behavior, and document the decision.
+
+Because `dip.yml` stays at the repository root, document normal `dip` commands such as `dip provision`, `dip up`, and `dip test`. Keep paths inside root `dip.yml` valid from the repository root; reference the compose file as `.dockerdev/compose.yml`. For the compose file at `.dockerdev/compose.yml`, use `context: ..`, `dockerfile: .dockerdev/Dockerfile.dev`, and bind mounts such as `..:/app`.
+
+If scripts are needed for waiting on services, bootstrapping databases, applying migrations, or other repeatable development tasks, create them under `.dockerdev/`, for example `.dockerdev/scripts/wait-for-db.sh`. Reference those scripts from `dip.yml` with paths that work when commands execute from the repository root.
 
 ## Mandatory critical-resource safety check
 
@@ -83,6 +103,30 @@ The README update must document the commands that actually exist after the chang
 
 Keep README edits concise and aligned with the existing documentation style. If the target project has no README, create a minimal `README.md` section for local development commands.
 
+## Mandatory Dip installation documentation
+
+Whenever this skill creates or changes a project's `dip` workflow, update the target project's `README.md` with concise Dip installation instructions for common operating systems.
+
+Document these options:
+
+- macOS: Homebrew is preferred.
+  ```bash
+  brew tap bibendi/dip
+  brew install dip
+  ```
+- Linux: use Homebrew on Linux when available, or install via RubyGems.
+  ```bash
+  brew tap bibendi/dip
+  brew install dip
+  ```
+  ```bash
+  gem install dip
+  ```
+- Windows: use WSL2 with a Linux distribution, then follow the Linux instructions inside WSL.
+- Any OS with Ruby: `gem install dip`.
+
+Also mention the precompiled binary option from Dip releases when Homebrew or RubyGems is not suitable, but avoid hardcoding a stale version unless the project explicitly pins one.
+
 ## Recipe: Next.js + Supabase/PostgREST
 
 Apply when:
@@ -100,10 +144,10 @@ Goal:
 
 Target files (create if missing, merge carefully if present):
 
-- `Dockerfile.dev`
-- `docker-compose.yml`
+- `.dockerdev/Dockerfile.dev`
+- `.dockerdev/compose.yml`
 - `dip.yml`
-- `.env.example` (only add missing local-development variables)
+- `.dockerdev/.env.example` (only add missing local-development variables)
 
 Recommended defaults:
 
@@ -142,20 +186,20 @@ RUN apt-get update -qq \
 CMD ["sleep", "infinity"]
 ```
 
-docker-compose.yml template:
+compose.yml template:
 
 ```yaml
 services:
   app:
     build:
-      context: .
-      dockerfile: Dockerfile.dev
+      context: ..
+      dockerfile: .dockerdev/Dockerfile.dev
     command: npm run dev -- --hostname 0.0.0.0
     working_dir: /app
     ports:
       - "${NEXT_PORT:-3000}:3000"
     volumes:
-      - .:/app
+      - ..:/app
       - node_modules:/app/node_modules
       - next_cache:/app/.next
     env_file:
@@ -220,7 +264,7 @@ alter default privileges in schema public grant select, insert, update, delete o
 
 `dip.yml` command set should include:
 
-- `provision`: create `.env` from `.env.example` when missing, build images, install dependencies, start `db` and `rest`, wait for Postgres, apply SQL files from `supabase/migrations/*.sql` or `db/migrations/*.sql` when present, and start `app`.
+- `provision`: create `.dockerdev/.env` from `.dockerdev/.env.example` when missing, build images, install dependencies, start `db` and `rest`, wait for Postgres, apply SQL files from `supabase/migrations/*.sql` or `db/migrations/*.sql` when present, and start `app`.
 - `up`: start the app stack.
 - `down`: stop the app stack.
 - `shell`: open shell in `app`.
@@ -238,7 +282,7 @@ version: '8.0'
 
 compose:
   files:
-    - docker-compose.yml
+    - .dockerdev/compose.yml
   project_name: my-next-app
 
 interaction:
@@ -272,7 +316,7 @@ interaction:
     command: psql -U postgres -d postgres
 
 provision:
-  - test -f .env || cp .env.example .env
+  - test -f .dockerdev/.env || cp .dockerdev/.env.example .dockerdev/.env
   - dip compose build
   - dip compose run --rm app npm ci
   - dip compose up -d db rest
@@ -291,17 +335,17 @@ Adjust the example before writing it:
 - If no `lint` script exists, omit `lint`.
 - If no useful `test` script exists, omit `test` and mention which scripts were available.
 - If `next.config.*` includes custom image or env settings, leave them unchanged.
-- If a project already has `.env.example`, append only missing keys and never overwrite secrets.
+- If a project already has `.env.example`, copy only missing local-development keys into `.dockerdev/.env.example` and never overwrite secrets.
 - Keep placeholder Supabase keys clearly local-only unless real keys already exist in ignored `.env` files.
 
 ## Recipe: Node.js
 
 Apply when `package.json` is present and Rails/Django/Next.js are not detected.
 
-Target files (create if missing):
+Target files (create under `.dockerdev/` if missing):
 
-- `docker-compose.yml` (or merge into existing compose file)
-- `Dockerfile.dev`
+- `.dockerdev/compose.yml` (or merge into existing compose file)
+- `.dockerdev/Dockerfile.dev`
 - `dip.yml`
 
 Recommended defaults:
@@ -324,12 +368,12 @@ Recommended defaults:
 
 Apply when Django is detected and Rails is not detected.
 
-Target files (create if missing):
+Target files (create under `.dockerdev/` if missing):
 
-- `docker-compose.yml` with:
+- `.dockerdev/compose.yml` with:
   - `web` service for Django app
   - `db` service (PostgreSQL) when project requires database
-- `Dockerfile.dev`
+- `.dockerdev/Dockerfile.dev`
 - `dip.yml`
 
 Recommended defaults:
@@ -363,7 +407,8 @@ Always include:
 
 1. Detected stack and evidence.
 2. Files created/updated.
-3. Exact commands to run next (for example: `dip provision`, `dip up`, `dip test`).
-4. Critical-resource isolation check result.
-5. README command documentation added or updated.
-6. Any assumptions requiring user confirmation.
+3. Configuration location, especially root `dip.yml` and supporting files under `.dockerdev/`.
+4. Exact commands to run next (for example: `dip provision`, `dip up`, `dip test`).
+5. Critical-resource isolation check result.
+6. README Dip installation and command documentation added or updated.
+7. Any assumptions requiring user confirmation.
