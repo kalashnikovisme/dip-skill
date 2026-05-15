@@ -1,3 +1,10 @@
+---
+name: dip-skill
+description: Configure or update a project's local development environment with dip. Use when a user asks to set up dip, dipize a project, create or update dip.yml, add Docker Compose/Dockerfile development workflows, verify local development is isolated from critical resources, or provide dip commands for provisioning, shell access, tests, linting, and local services.
+metadata:
+  short-description: Configure local development with dip
+---
+
 # dip-skill
 
 Use this skill to configure or update a project's local development environment with `dip` (`https://github.com/bibendi/dip`).
@@ -5,8 +12,9 @@ Use this skill to configure or update a project's local development environment 
 ## Core behavior
 
 1. Detect the current tech stack.
-2. Select and execute the matching recipe.
-3. Keep changes minimal and aligned with existing project conventions.
+2. Check that the development environment is isolated from production, staging, and other critical resources.
+3. Select and execute the matching recipe.
+4. Keep changes minimal and aligned with existing project conventions.
 
 ## Stack detection rules
 
@@ -39,10 +47,41 @@ Respond with:
 
 ## Recipe execution policy
 
+- Before running provisioning, migrations, seed tasks, or any command that can mutate data, complete the critical-resource safety check below.
 - Prefer updating existing `dip.yml` / compose files over replacing them.
 - Reuse existing service names and ports when possible.
 - Avoid destructive edits.
 - After changes, provide exact `dip` commands for provisioning and daily workflow.
+- Update the target project's `README.md` with the `dip` commands this skill implemented or changed.
+
+## Mandatory critical-resource safety check
+
+Every generated or updated development workflow must be isolated from production, staging, and other critical environments.
+
+Before writing final `dip` commands or running any mutable command:
+
+1. Inspect existing local-development inputs, including `dip.yml`, compose files, Dockerfiles, `.env.example`, committed env templates, framework config, package scripts, and documented setup commands.
+2. Look for references to critical resources, including production or staging database URLs, hosted Postgres/Supabase/Redis/Elasticsearch endpoints, cloud storage buckets, queues, payment providers, email/SMS providers, analytics projects, or any env var names/values that clearly target shared infrastructure.
+3. Ensure generated defaults point to local containers or explicitly local emulators only, such as `db`, `localhost`, `127.0.0.1`, Docker service names, or placeholder local-only credentials.
+4. Do not copy real secrets or critical URLs from `.env`, shell history, deployment files, CI variables, or ignored files into generated config or docs.
+5. If a critical resource is detected or cannot be ruled out, stop before running mutable commands. Report the exact file/key or command that appears risky, replace generated defaults with local placeholders where safe, and ask the user to confirm the intended local resource before continuing.
+
+For database and migration commands, the safety check is mandatory. Never run migrations, resets, seeds, destructive SQL, queue workers, sync jobs, or one-off scripts when the configured target appears to be production, staging, shared, or unknown.
+
+The final response must state whether critical-resource isolation was verified, changed, or blocked by an unresolved risk.
+
+## Mandatory README command documentation
+
+Whenever this skill creates or changes `dip.yml`, Docker Compose files, Dockerfiles, or command workflows, update the target project's `README.md` in the same task.
+
+The README update must document the commands that actually exist after the change, including:
+
+- Provisioning/setup command, usually `dip provision`.
+- Start/stop commands, such as `dip up` and `dip down`, when implemented.
+- Shell or package-manager pass-through commands, such as `dip shell`, `dip npm`, `dip pnpm`, or `dip yarn`, when implemented.
+- Test, lint, database, framework CLI, or service commands, such as `dip test`, `dip lint`, `dip psql`, `dip manage`, or `dip next`, when implemented.
+
+Keep README edits concise and aligned with the existing documentation style. If the target project has no README, create a minimal `README.md` section for local development commands.
 
 ## Recipe: Next.js + Supabase/PostgREST
 
@@ -325,4 +364,6 @@ Always include:
 1. Detected stack and evidence.
 2. Files created/updated.
 3. Exact commands to run next (for example: `dip provision`, `dip up`, `dip test`).
-4. Any assumptions requiring user confirmation.
+4. Critical-resource isolation check result.
+5. README command documentation added or updated.
+6. Any assumptions requiring user confirmation.
