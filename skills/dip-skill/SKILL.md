@@ -17,6 +17,7 @@ Inspect repository files in this order:
    - `config/application.rb` exists
 2. **Node.js**
    - `package.json` exists
+   - If `package.json` contains `next`, prefer the **Next.js** recipe below
 3. **Django**
    - `manage.py` exists, or
    - `pyproject.toml` / `requirements*.txt` contains `django`
@@ -25,7 +26,7 @@ Inspect repository files in this order:
 5. **Unknown**
    - None of the above patterns match
 
-If multiple stacks match, prioritize framework-specific recipes (`Rails`, `Django`) over generic ones.
+If multiple stacks match, prioritize framework-specific recipes (`Rails`, `Django`, `Next.js`) over generic ones.
 
 ## Mandatory Rails handoff
 
@@ -43,9 +44,220 @@ Respond with:
 - Avoid destructive edits.
 - After changes, provide exact `dip` commands for provisioning and daily workflow.
 
+## Recipe: Next.js + Supabase/PostgREST
+
+Apply when:
+
+- `package.json` exists and dependencies include `next`.
+- Supabase is detected by any of:
+  - dependency `@supabase/supabase-js`
+  - a `supabase/` directory
+  - environment variables such as `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, or `DATABASE_URL`
+
+Goal:
+
+- A fresh checkout should be runnable with one command: `dip provision`.
+- `dip provision` should build images, install dependencies, prepare local env files when missing, start local database services, apply available SQL migrations, and leave the app running.
+
+Target files (create if missing, merge carefully if present):
+
+- `Dockerfile.dev`
+- `docker-compose.yml`
+- `dip.yml`
+- `.env.example` (only add missing local-development variables)
+
+Recommended defaults:
+
+- App service name: `app`
+- Database service name: `db`
+- PostgREST service name: `rest`
+- Node image: `node:22-bookworm-slim`
+- Working dir: `/app`
+- App port: `${NEXT_PORT:-3000}:3000`
+- Postgres port: `${POSTGRES_PORT:-54322}:5432`
+- PostgREST port: `${POSTGREST_PORT:-54321}:3000`
+- Bind mount the project directory.
+- Use Docker volumes for `node_modules`, `.next`, and database data.
+- Run Next.js as `npm run dev -- --hostname 0.0.0.0` when `dev` script is present.
+
+Package manager detection:
+
+- `pnpm-lock.yaml` -> use `corepack enable && pnpm install --frozen-lockfile`; command prefix `pnpm`
+- `yarn.lock` -> use `corepack enable && yarn install --frozen-lockfile`; command prefix `yarn`
+- `package-lock.json` or `npm-shrinkwrap.json` -> use `npm ci`; command prefix `npm`
+- otherwise -> use `npm install`; command prefix `npm`
+
+Dockerfile.dev template:
+
+```dockerfile
+FROM node:22-bookworm-slim
+
+WORKDIR /app
+
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN apt-get update -qq \
+  && apt-get install -y --no-install-recommends ca-certificates openssl postgresql-client \
+  && rm -rf /var/lib/apt/lists/*
+
+CMD ["sleep", "infinity"]
+```
+
+docker-compose.yml template:
+
+```yaml
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    command: npm run dev -- --hostname 0.0.0.0
+    working_dir: /app
+    ports:
+      - "${NEXT_PORT:-3000}:3000"
+    volumes:
+      - .:/app
+      - node_modules:/app/node_modules
+      - next_cache:/app/.next
+    env_file:
+      - .env
+    environment:
+      NEXT_TELEMETRY_DISABLED: "1"
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@db:5432/postgres}
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-http://localhost:54321}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-local-anon-key}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-local-service-role-key}
+    depends_on:
+      db:
+        condition: service_healthy
+      rest:
+        condition: service_started
+
+  db:
+    image: postgres:16-alpine
+    ports:
+      - "${POSTGRES_PORT:-54322}:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  rest:
+    image: postgrest/postgrest:v12.2.8
+    ports:
+      - "${POSTGREST_PORT:-54321}:3000"
+    environment:
+      PGRST_DB_URI: postgres://postgres:postgres@db:5432/postgres
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${SUPABASE_JWT_SECRET:-local-development-jwt-secret-change-me}
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  node_modules:
+  next_cache:
+  postgres_data:
+```
+
+If the app uses Supabase Auth, Storage, Realtime, Edge Functions, or relies on Supabase's `/rest/v1` gateway path, do not pretend plain PostgREST is a complete Supabase replacement. In that case, keep the Next.js `app` service but configure `dip provision` to call the official Supabase CLI workflow (`supabase start`, `supabase db reset`, etc.) and document that Docker plus Supabase CLI are required on the host.
+
+For standalone PostgREST mode, add an idempotent database bootstrap before migrations:
+
+```sql
+create role anon nologin;
+grant usage on schema public to anon;
+grant select, insert, update, delete on all tables in schema public to anon;
+alter default privileges in schema public grant select, insert, update, delete on tables to anon;
+```
+
+`dip.yml` command set should include:
+
+- `provision`: create `.env` from `.env.example` when missing, build images, install dependencies, start `db` and `rest`, wait for Postgres, apply SQL files from `supabase/migrations/*.sql` or `db/migrations/*.sql` when present, and start `app`.
+- `up`: start the app stack.
+- `down`: stop the app stack.
+- `shell`: open shell in `app`.
+- package-manager pass-through command (`npm`, `pnpm`, or `yarn`).
+- `next`: run Next.js CLI through the detected package manager.
+- `lint`: run configured lint script.
+- `test`: run `test` script when present, otherwise omit or map to the closest configured test/regression script.
+- `psql`: open `psql` against local Postgres.
+
+Recommended `dip.yml` shape:
+
+```yaml
+# yaml-language-server: $schema=https://raw.githubusercontent.com/bibendi/dip/refs/heads/master/schema.json
+version: '8.0'
+
+compose:
+  files:
+    - docker-compose.yml
+  project_name: my-next-app
+
+interaction:
+  shell:
+    description: Open a shell in the app container
+    service: app
+    command: bash
+    compose:
+      run_options: [no-deps]
+
+  npm:
+    description: Run npm in the app container
+    service: app
+    command: npm
+    compose:
+      run_options: [no-deps]
+
+  next:
+    description: Run Next.js CLI
+    service: app
+    command: npm exec next
+
+  lint:
+    description: Run lint
+    service: app
+    command: npm run lint
+
+  psql:
+    description: Open local Postgres
+    service: db
+    command: psql -U postgres -d postgres
+
+provision:
+  - test -f .env || cp .env.example .env
+  - dip compose build
+  - dip compose run --rm app npm ci
+  - dip compose up -d db rest
+  - dip compose exec db sh -lc 'until pg_isready -U postgres -d postgres; do sleep 1; done'
+  - dip compose exec db psql -U postgres -d postgres -c 'do $$ begin create role anon nologin; exception when duplicate_object then null; end $$;'
+  - dip compose exec db psql -U postgres -d postgres -c 'grant usage on schema public to anon; grant select, insert, update, delete on all tables in schema public to anon; alter default privileges in schema public grant select, insert, update, delete on tables to anon;'
+  - if ls supabase/migrations/*.sql >/dev/null 2>&1; then for f in supabase/migrations/*.sql; do dip compose exec -T db psql -U postgres -d postgres < "$f"; done; fi
+  - if ls db/migrations/*.sql >/dev/null 2>&1; then for f in db/migrations/*.sql; do dip compose exec -T db psql -U postgres -d postgres < "$f"; done; fi
+  - dip compose up -d app
+```
+
+Adjust the example before writing it:
+
+- Replace `project_name` with a sanitized value from `package.json` `name`.
+- Replace package-manager commands according to lockfile detection.
+- If no `lint` script exists, omit `lint`.
+- If no useful `test` script exists, omit `test` and mention which scripts were available.
+- If `next.config.*` includes custom image or env settings, leave them unchanged.
+- If a project already has `.env.example`, append only missing keys and never overwrite secrets.
+- Keep placeholder Supabase keys clearly local-only unless real keys already exist in ignored `.env` files.
+
 ## Recipe: Node.js
 
-Apply when `package.json` is present and Rails/Django are not detected.
+Apply when `package.json` is present and Rails/Django/Next.js are not detected.
 
 Target files (create if missing):
 
