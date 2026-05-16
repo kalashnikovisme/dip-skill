@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.1
+
+- Required helper scripts under `.dockerdev/scripts/` to use the project's main language with an executable shebang.
+
 ## 0.5.0
 
 - Updated placement rules so `dip.yml` remains at the repository root while supporting development configuration files stay under `.dockerdev/`.

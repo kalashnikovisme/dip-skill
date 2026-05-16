@@ -72,7 +72,7 @@ Do not create new root-level `docker-compose.yml`, `compose.yml`, `Dockerfile.de
 
 Because `dip.yml` stays at the repository root, document normal `dip` commands such as `dip provision`, `dip up`, and `dip test`. Keep paths inside root `dip.yml` valid from the repository root; reference the compose file as `.dockerdev/compose.yml`. For the compose file at `.dockerdev/compose.yml`, use `context: ..`, `dockerfile: .dockerdev/Dockerfile.dev`, and bind mounts such as `..:/app`.
 
-If scripts are needed for waiting on services, bootstrapping databases, applying migrations, or other repeatable development tasks, create them under `.dockerdev/`, for example `.dockerdev/scripts/wait-for-db.sh`. Reference those scripts from `dip.yml` with paths that work when commands execute from the repository root.
+If scripts are needed for waiting on services, bootstrapping databases, applying migrations, or other repeatable development tasks, create them under `.dockerdev/scripts/`. These scripts must be written in the project's main language and must start with the matching executable shebang, for example `#!/usr/bin/env ruby` for Ruby projects, `#!/usr/bin/env node` for JavaScript/TypeScript projects, or `#!/usr/bin/env python3` for Python projects. Use shell scripts only when shell is the project's main language or when there is no practical runtime available in the app image. Reference those scripts from `dip.yml` with paths that work when commands execute from the repository root.
 
 ## Mandatory critical-resource safety check
 
