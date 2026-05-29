@@ -1,6 +1,6 @@
 # dip-skill
 
-`dip-skill` is a Codex skill that helps configure local development environments with [`dip`](https://github.com/bibendi/dip).
+`dip-skill` is a skill for both **Codex** and **Claude Code** that helps configure local development environments with [`dip`](https://github.com/bibendi/dip). The same skill content works in both AI systems.
 
 ## What this skill can do
 

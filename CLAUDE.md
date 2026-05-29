@@ -6,7 +6,7 @@ These instructions apply to the entire `dip-skill` repository.
 
 ## About This Skill
 
-`dip-skill` is a dual-purpose skill that works with both **Codex** and **Claude Code**. The skill content lives in `skills/dip-skill/SKILL.md` and uses a shared format (YAML frontmatter + Markdown body) understood by both AI systems.
+`dip-skill` is a dual-purpose skill that works with both **Claude Code** and **Codex**. The skill content lives in `skills/dip-skill/SKILL.md` and uses a shared format (YAML frontmatter + Markdown body) understood by both AI systems.
 
 ## End-of-Task Skill Sync
 
@@ -26,14 +26,14 @@ Version rules:
 - Maintain `skills/dip-skill/CHANGELOG.md` for every version bump. Add a new entry for the new version and summarize what the user asked to change.
 - When the user asks which version they are using, answer from `skills/dip-skill/VERSION` in the active skill copy.
 
-Then run these commands from the repo root:
+Then run these commands from the repo root to validate and install the skill locally for Claude Code:
 
 ```bash
 python3 ~/.codex/skills/.system/skill-creator/scripts/quick_validate.py ./skills/dip-skill
-rm -rf ~/.codex/skills/dip-skill
-cp -R ./skills/dip-skill ~/.codex/skills/dip-skill
+rm -rf ~/.claude/skills/dip-skill
+cp -R ./skills/dip-skill ~/.claude/skills/dip-skill
 ```
 
-This is a developer workflow requirement for local testing of the current skill revision in Codex.
+This installs the updated skill into Claude Code's local skill directory so the current revision is active immediately. Run this after every change to this repository.
 
-> **Note:** To also sync for Claude Code in the same session, see `CLAUDE.md` for the Claude Code sync command.
+> **Note:** To also sync for Codex in the same session, see `AGENTS.md` for the Codex sync command.

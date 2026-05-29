@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.1
+
+- Clarified `CLAUDE.md` sync instruction: emphasized it must run after every change and installs the skill into Claude Code's local skill directory.
+- Updated `README.md` intro to state the skill works for both Codex and Claude Code with the same content.
+
+## 0.6.0
+
+- Made the skill dual-purpose: works with both Codex and Claude Code.
+- Added `CLAUDE.md` with Claude Code-specific scope, versioning rules, and skill sync instructions.
+- Updated `AGENTS.md` to describe the dual-system nature and cross-reference `CLAUDE.md`.
+
 ## 0.5.1
 
 - Required helper scripts under `.dockerdev/scripts/` to use the project's main language with an executable shebang.
