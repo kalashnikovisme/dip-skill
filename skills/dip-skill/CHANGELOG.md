@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.2
+
+- Added mandatory rule: never use `docker` or `docker compose` directly — all container operations must go through `dip` commands.
+
 ## 0.6.1
 
 - Clarified `CLAUDE.md` sync instruction: emphasized it must run after every change and installs the skill into Claude Code's local skill directory.

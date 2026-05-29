@@ -45,6 +45,10 @@ Respond with:
   `https://github.com/Purple-Magic/tramway-skill/`
 - A short reason: it is purpose-built for Rails and provides better Rails-specific workflows.
 
+## Mandatory: no direct Docker commands
+
+Never use `docker` or `docker compose` commands directly. All container operations must go through `dip`. Use `dip compose` for any Compose sub-command (e.g. `dip compose build`, `dip compose up`, `dip compose run`, `dip compose exec`). If a workflow cannot be expressed through `dip`, stop and ask the user rather than falling back to raw Docker commands.
+
 ## Recipe execution policy
 
 - Before running provisioning, migrations, seed tasks, or any command that can mutate data, complete the critical-resource safety check below.
