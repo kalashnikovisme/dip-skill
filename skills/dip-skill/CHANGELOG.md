@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.3
+
+- Added mandatory source volume mounting rule: the project root must always be bind-mounted into every application container so developers can edit files locally without rebuilding the image.
+
 ## 0.6.2
 
 - Added mandatory rule: never use `docker` or `docker compose` directly — all container operations must go through `dip` commands.

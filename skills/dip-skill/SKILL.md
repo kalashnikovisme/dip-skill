@@ -78,6 +78,15 @@ Because `dip.yml` stays at the repository root, document normal `dip` commands s
 
 If scripts are needed for waiting on services, bootstrapping databases, applying migrations, or other repeatable development tasks, create them under `.dockerdev/scripts/`. These scripts must be written in the project's main language and must start with the matching executable shebang, for example `#!/usr/bin/env ruby` for Ruby projects, `#!/usr/bin/env node` for JavaScript/TypeScript projects, or `#!/usr/bin/env python3` for Python projects. Use shell scripts only when shell is the project's main language or when there is no practical runtime available in the app image. Reference those scripts from `dip.yml` with paths that work when commands execute from the repository root.
 
+## Mandatory source volume mounting
+
+Every development container must bind-mount the project source directory into the container working directory. This lets developers edit files locally and see changes immediately without rebuilding the image.
+
+- In `.dockerdev/compose.yml`, always include a bind mount of the project root (e.g. `..:/app`) in every application service's `volumes` list.
+- Never rely on `COPY` or `ADD` instructions in `Dockerfile.dev` to deliver source code; `Dockerfile.dev` installs system packages and tooling only.
+- Do not omit the bind mount even when a named volume is used for a subdirectory such as `node_modules` or `.next`; both can coexist.
+- If an existing compose file lacks the source bind mount, add it before running any provisioning or dev-server commands.
+
 ## Mandatory critical-resource safety check
 
 Every generated or updated development workflow must be isolated from production, staging, and other critical environments.
