@@ -12,9 +12,10 @@ Use this skill to configure or update a project's local development environment 
 ## Core behavior
 
 1. Detect the current tech stack.
-2. Check that the development environment is isolated from production, staging, and other critical resources.
-3. Select and execute the matching recipe.
-4. Keep changes minimal and aligned with existing project conventions.
+2. Detect executable files in `bin/` or other stack-specific locations and plan corresponding `dip` commands.
+3. Check that the development environment is isolated from production, staging, and other critical resources.
+4. Select and execute the matching recipe.
+5. Keep changes minimal and aligned with existing project conventions.
 
 ## Stack detection rules
 
@@ -35,6 +36,72 @@ Inspect repository files in this order:
    - None of the above patterns match
 
 If multiple stacks match, prioritize framework-specific recipes (`Rails`, `Django`, `Next.js`) over generic ones.
+
+## Execution file detection
+
+After identifying the stack, scan the project for executable files that developers typically run directly and expose each one as a `dip` command.
+
+### Where to look
+
+| Stack | Locations to scan |
+|---|---|
+| All stacks | `bin/` at the project root |
+| Node.js / Next.js | `bin/`, plus the `bin` field in `package.json` |
+| Django / Python | `bin/`, `scripts/` |
+| Unknown | `bin/`, `scripts/` |
+
+### What counts as an executable file
+
+A file is considered an executable entry point when any of these is true:
+
+- It has the executable permission bit set (`chmod +x`).
+- It contains a recognized shebang on the first line: `#!/usr/bin/env ruby`, `#!/usr/bin/env node`, `#!/usr/bin/env python3`, `#!/bin/bash`, `#!/bin/sh`, or similar.
+- It has no file extension and lives in `bin/` (common for Ruby binstubs and Unix-style wrappers).
+
+Skip files with extensions `.md`, `.txt`, `.json`, `.yml`, `.yaml`, `.lock`, `.env`, `.example`, `.sample`.
+
+### Mapping to `dip` commands
+
+For each detected executable:
+
+- Use the bare filename (no extension, no directory prefix) as the `dip` command name unless it conflicts with a command already defined in the recipe.
+- If the name conflicts with an existing command (e.g., `setup` vs. a provisioning command), prefix it with the directory: `bin-<name>` or `scripts-<name>`.
+- Run the command inside the primary application container (`app`, `web`, or the service that owns the runtime).
+- Use the relative path from the project root as the `command` value so it works regardless of `WORKDIR`.
+- Add `compose.run_options: [no-deps]` unless the script requires dependent services (e.g., a database migration script).
+
+Example `dip.yml` entries:
+
+```yaml
+interaction:
+  console:
+    description: Open app console via bin/console
+    service: app
+    command: bin/console
+    compose:
+      run_options: [no-deps]
+
+  ci:
+    description: Run CI checks via bin/ci
+    service: app
+    command: bin/ci
+```
+
+### Stack-specific naming conventions
+
+Common filenames and their conventional `dip` command names:
+
+- `bin/setup` → `dip setup` (project bootstrap script)
+- `bin/console` → `dip console` (interactive REPL)
+- `bin/dev` → `dip dev` (start dev processes)
+- `bin/ci` → `dip ci` (run CI checks locally)
+- `bin/update` → `dip update` (update dependencies)
+- `bin/<app-name>` → `dip <app-name>` (main CLI entry point)
+- `scripts/<name>` → `dip <name>` (generic helper script)
+
+For Node.js projects with a `bin` field in `package.json`, use the key name from that field as the `dip` command name and invoke it via the detected package manager (e.g., `npm exec <bin-name>`).
+
+Include detected execution file commands in the README update alongside other `dip` commands.
 
 ## Mandatory Rails handoff
 
@@ -419,9 +486,10 @@ If no known stack is detected:
 Always include:
 
 1. Detected stack and evidence.
-2. Files created/updated.
-3. Configuration location, especially root `dip.yml` and supporting files under `.dockerdev/`.
-4. Exact commands to run next (for example: `dip provision`, `dip up`, `dip test`).
-5. Critical-resource isolation check result.
-6. README Dip installation and command documentation added or updated.
-7. Any assumptions requiring user confirmation.
+2. Execution files found in `bin/`, `scripts/`, or other stack-specific locations, and the `dip` command mapped to each.
+3. Files created/updated.
+4. Configuration location, especially root `dip.yml` and supporting files under `.dockerdev/`.
+5. Exact commands to run next (for example: `dip provision`, `dip up`, `dip test`, plus any execution-file commands such as `dip console` or `dip ci`).
+6. Critical-resource isolation check result.
+7. README Dip installation and command documentation added or updated.
+8. Any assumptions requiring user confirmation.

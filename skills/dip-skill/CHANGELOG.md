@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.0
+
+- Added execution file detection: the skill now scans `bin/`, `scripts/`, and stack-specific locations for executable files and creates corresponding `dip` commands for each one found.
+- Added a table of per-stack scan locations, rules for identifying executable files, naming conventions, and conflict-resolution guidance.
+- Updated core behavior to list execution file detection as step 2.
+- Updated the output format to report detected execution files and their mapped `dip` commands.
+
 ## 0.6.3
 
 - Added mandatory source volume mounting rule: the project root must always be bind-mounted into every application container so developers can edit files locally without rebuilding the image.
