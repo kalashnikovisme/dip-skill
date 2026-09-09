@@ -37,3 +37,5 @@ cp -R ./skills/dip-skill ~/.codex/skills/dip-skill
 This is a developer workflow requirement for local testing of the current skill revision in Codex.
 
 > **Note:** To also sync for Claude Code in the same session, see `CLAUDE.md` for the Claude Code sync command.
+
+> **Development-only:** This sync step is a local-development convenience, not runtime skill behavior. `skills/dip-skill/SKILL.md` must never instruct the running skill to reinstall or copy itself into `~/.codex/skills` or `~/.claude/skills`.

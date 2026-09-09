@@ -16,6 +16,24 @@
 
 ## Installation
 
+### Claude Code — recommended
+
+Add the marketplace:
+
+```text
+/plugin marketplace add kalashnikovisme/dip-skill
+```
+
+Install the plugin:
+
+```text
+/plugin install dip-skill@dip-skill-marketplace
+```
+
+This installs `dip-skill` as a Claude Code plugin and keeps it updateable through the normal plugin mechanism (see [Updating](#updating)).
+
+### Codex
+
 Install using Codex `skill-installer` from:
 
 `https://github.com/kalashnikovisme/dip-skill/tree/main/skills/dip-skill`
@@ -26,7 +44,29 @@ Example:
 codex "Use the skill-installer skill to install https://github.com/kalashnikovisme/dip-skill/tree/main/skills/dip-skill"
 ```
 
-Then restart Codex.
+Then restart Codex. This is currently a manual installation with no automatic update mechanism; re-run the command above to pick up a newer revision.
+
+### Manual installation (fallback)
+
+If you can't use the Claude Code plugin marketplace, copy the skill directory directly:
+
+```bash
+git clone https://github.com/kalashnikovisme/dip-skill
+rm -rf ~/.claude/skills/dip-skill
+cp -R ./dip-skill/skills/dip-skill ~/.claude/skills/dip-skill
+```
+
+Manual copies do **not** receive automatic updates. To update, re-clone (or `git pull`) and repeat the `rm -rf` / `cp -R` steps above.
+
+## Updating
+
+Claude Code users who installed via the marketplace can update manually:
+
+```text
+claude plugin update dip-skill@dip-skill-marketplace
+```
+
+You can also enable automatic updates for this plugin from Claude Code's `/plugin` manager or the marketplace UI, so new commits are picked up without running the command above. Manual (`cp -R`) installations are not covered by this mechanism — see [Manual installation](#manual-installation-fallback).
 
 ## Usage
 

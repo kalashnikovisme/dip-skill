@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.0
+
+- Added Claude Code plugin marketplace support via `.claude-plugin/marketplace.json` at the repository root, pointing to `./skills/dip-skill`. No static `version` field is set in the marketplace entry so the plugin's update identity tracks the resolved Git commit SHA instead of duplicating the semantic version.
+- Made Claude Code marketplace installation (`/plugin marketplace add` + `/plugin install`) the recommended installation method in `README.md`, with `claude plugin update` and marketplace auto-update documented for updating.
+- Reclassified manual `cp -R` installation (for both Claude Code and Codex) as an explicit fallback in `README.md`, clearly noting it does not receive automatic updates.
+- Documented in `CLAUDE.md` and `AGENTS.md` that the existing "end-of-task" `rm -rf` / `cp -R` sync steps are local-development conveniences only, and that `SKILL.md` must never instruct the running skill to reinstall or copy itself.
+- No changes to skill recipe behavior.
+
 ## 0.7.0
 
 - Added execution file detection: the skill now scans `bin/`, `scripts/`, and stack-specific locations for executable files and creates corresponding `dip` commands for each one found.

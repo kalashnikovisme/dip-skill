@@ -37,3 +37,5 @@ cp -R ./skills/dip-skill ~/.claude/skills/dip-skill
 This installs the updated skill into Claude Code's local skill directory so the current revision is active immediately. Run this after every change to this repository.
 
 > **Note:** To also sync for Codex in the same session, see `AGENTS.md` for the Codex sync command.
+
+> **Development-only:** This sync step is a local-development convenience for testing the current revision as an unpacked skill copy. It is not part of the skill's runtime behavior — `skills/dip-skill/SKILL.md` must never instruct the running skill to reinstall, update, or copy itself. End users who install `dip-skill` via the Claude Code plugin marketplace (see `README.md`) do not need to run this and get updates through the normal plugin update mechanism instead.
