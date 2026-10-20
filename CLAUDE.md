@@ -39,3 +39,12 @@ This installs the updated skill into Claude Code's local skill directory so the 
 > **Note:** To also sync for Codex in the same session, see `AGENTS.md` for the Codex sync command.
 
 > **Development-only:** This sync step is a local-development convenience for testing the current revision as an unpacked skill copy. It is not part of the skill's runtime behavior — `skills/dip-skill/SKILL.md` must never instruct the running skill to reinstall, update, or copy itself. End users who install `dip-skill` via the Claude Code plugin marketplace (see `README.md`) do not need to run this and get updates through the normal plugin update mechanism instead.
+
+## Mandatory Commit Policy
+
+In this repository, commit every change as soon as it's made — do not batch multiple unrelated changes into one commit, and do not wait for the user to ask for a commit.
+
+- After completing each discrete change (e.g., editing `SKILL.md`, bumping `VERSION`, updating `CHANGELOG.md`, updating `README.md`), stage and commit it before moving on to the next unrelated change.
+- A single logical task (e.g., "add instruction X" which touches `SKILL.md` + `VERSION` + `CHANGELOG.md` together) may be committed as one commit, since those files change together under the versioning rule above.
+- Write concise commit messages describing what changed and why.
+- This overrides the general default of only committing when explicitly asked — in this repository, committing after each change is the explicit, standing instruction.
