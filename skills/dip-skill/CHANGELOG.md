@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.0
+
+- Added a step to core behavior requiring the skill to report its own version (from `skills/dip-skill/VERSION`) and the installed `dip` version (`dip version`) at the start of work.
+
+## 0.9.0
+
+- Added a mandatory provisioning verification step: when a user asks to dipize or dockerize a project, the skill must actually run `dip provision` (and `dip up` when appropriate for the project) and iteratively diagnose and fix the configuration until the command succeeds, rather than stopping at generating files.
+
 ## 0.8.0
 
 - Added Claude Code plugin marketplace support via `.claude-plugin/marketplace.json` at the repository root, pointing to `./skills/dip-skill`. No static `version` field is set in the marketplace entry so the plugin's update identity tracks the resolved Git commit SHA instead of duplicating the semantic version.

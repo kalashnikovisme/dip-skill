@@ -11,11 +11,12 @@ Use this skill to configure or update a project's local development environment 
 
 ## Core behavior
 
-1. Detect the current tech stack.
-2. Detect executable files in `bin/` or other stack-specific locations and plan corresponding `dip` commands.
-3. Check that the development environment is isolated from production, staging, and other critical resources.
-4. Select and execute the matching recipe.
-5. Keep changes minimal and aligned with existing project conventions.
+1. At the start of work, report the skill version (from `skills/dip-skill/VERSION` in the active skill copy) and the installed `dip` version (`dip version`, or report that `dip` is not installed/not found if the command fails).
+2. Detect the current tech stack.
+3. Detect executable files in `bin/` or other stack-specific locations and plan corresponding `dip` commands.
+4. Check that the development environment is isolated from production, staging, and other critical resources.
+5. Select and execute the matching recipe.
+6. Keep changes minimal and aligned with existing project conventions.
 
 ## Stack detection rules
 
@@ -169,6 +170,16 @@ Before writing final `dip` commands or running any mutable command:
 For database and migration commands, the safety check is mandatory. Never run migrations, resets, seeds, destructive SQL, queue workers, sync jobs, or one-off scripts when the configured target appears to be production, staging, shared, or unknown.
 
 The final response must state whether critical-resource isolation was verified, changed, or blocked by an unresolved risk.
+
+## Mandatory provisioning verification
+
+When a user asks to "dipize" a project or set up dockerization with `dip`, do not stop at generating files.
+
+- After generating or updating the `dip` configuration, run `dip provision`.
+- If it fails, diagnose the failure, fix the underlying `dip.yml` / `.dockerdev/` configuration, and re-run `dip provision`. Repeat until it succeeds. Do not report completion while `dip provision` is failing.
+- If an `up` command (`dip up`) is appropriate for this project (i.e. the project has a long-running dev server/service rather than a one-shot task), run it after a successful `dip provision` and fix it the same way: diagnose, fix configuration, retry, until it works.
+- Only fall back to asking the user when the fix requires information that cannot be determined from the repository (e.g., missing real credentials for a required external service) or requires a destructive/critical-resource decision covered by the safety check above.
+- Keep applying the critical-resource safety check throughout this iteration; never loosen it to get a command to pass.
 
 ## Mandatory README command documentation
 
