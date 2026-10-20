@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.0
+
+- Added a mandatory step to explain day-to-day `dip` usage to the user after `dip provision`/`dip up` succeeds: when to use `dip up`, when to re-run `dip provision`, and when/why to use `dip down`.
+
 ## 0.10.0
 
 - Added a step to core behavior requiring the skill to report its own version (from `skills/dip-skill/VERSION`) and the installed `dip` version (`dip version`) at the start of work.

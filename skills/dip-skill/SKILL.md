@@ -504,3 +504,13 @@ Always include:
 6. Critical-resource isolation check result.
 7. README Dip installation and command documentation added or updated.
 8. Any assumptions requiring user confirmation.
+
+## Mandatory usage explanation after `dip compose`/`dip up`
+
+After `dip provision` (which runs `dip compose` sub-commands) and/or `dip up` finishes successfully, always explain to the user, in plain terms, how to use the resulting workflow day-to-day:
+
+- `dip up`: starts the app stack in the background for daily development; explain when to use it (e.g., after the first `dip provision`, or whenever they want the services running again) and that it does not re-provision or reinstall dependencies.
+- Re-running `dip provision`: explain when they need to run it again — e.g., after pulling changes that alter dependencies, environment variables, migrations, or the `dip.yml`/`.dockerdev/` configuration itself — versus just using `dip up` for a normal day-to-day start.
+- `dip down`: explain that it stops and removes the running containers for this stack, and when to use it (e.g., shutting down for the day, freeing ports, or before switching branches with a different stack).
+
+Keep this explanation concise and tailored to the commands actually defined in the project's `dip.yml`.
