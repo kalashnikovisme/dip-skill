@@ -514,3 +514,12 @@ After `dip provision` (which runs `dip compose` sub-commands) and/or `dip up` fi
 - `dip down`: explain that it stops and removes the running containers for this stack, and when to use it (e.g., shutting down for the day, freeing ports, or before switching branches with a different stack).
 
 Keep this explanation concise and tailored to the commands actually defined in the project's `dip.yml`.
+
+## Mandatory port check after `dip up`
+
+After `dip up` runs successfully, verify that each port reported in its output (or declared in the relevant `ports:` entries of `.dockerdev/compose.yml`) is actually serving something, before telling the user the stack is ready.
+
+- For each such port on `localhost`/`127.0.0.1`, check it with a lightweight local request (e.g., `curl -sS -o /dev/null -w '%{http_code}' http://localhost:<port>` or an equivalent simple TCP/HTTP check). Any HTTP response (including non-2xx, such as 404) counts as the port being up; a connection error/refused/timeout does not.
+- If a port does not respond, treat this the same as a failed `dip up`: diagnose (check container logs via `dip compose logs <service>`, confirm the service's `ports:` mapping and bind mount, confirm the dev server binds to `0.0.0.0` not `127.0.0.1` inside the container), fix the configuration, and retry until it responds — following the same mandatory provisioning verification policy as `dip provision`.
+- Report the result of this check to the user (which ports were verified reachable, and the URL to open) alongside the usage explanation above.
+- Only skip this check for a port/service that is not meant to be reached from the host (e.g., an internal-only service with no host port mapping).

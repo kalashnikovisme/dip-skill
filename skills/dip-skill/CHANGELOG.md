@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.12.0
+
+- Added a mandatory port check after `dip up`: verify each reported host port actually responds before declaring the stack ready, diagnosing and fixing any port that doesn't respond, and reporting the check result to the user.
+
 ## 0.11.0
 
 - Added a mandatory step to explain day-to-day `dip` usage to the user after `dip provision`/`dip up` succeeds: when to use `dip up`, when to re-run `dip provision`, and when/why to use `dip down`.
