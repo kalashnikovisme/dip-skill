@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.13.1
+
+- Fixed a bug: `up`, `build`, `down`, and `provision` are reserved built-in `dip` commands, so an `interaction` entry named `up` was silently ignored and `dip up` ran the plain built-in (foreground `docker compose up`, no log replay for an already-backgrounded container) instead of the intended `-d && logs` wrapper. Removed the custom `up:`/`build:` interaction overrides from the recipes, documented `dip help`/`dip ls`/`dip tree` as a mandatory check before naming any interaction command, and switched the default workflow to plain `dip up` (foreground, streams logs from a cold start) plus an optional non-reserved `logs` command for re-attaching to an already-running background container.
+
 ## 0.13.0
 
 - `dip up` must show live logs from the main app container by default.

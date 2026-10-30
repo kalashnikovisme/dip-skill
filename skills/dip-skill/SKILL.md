@@ -188,7 +188,7 @@ Whenever this skill creates or changes `dip.yml`, Docker Compose files, Dockerfi
 The README update must document the commands that actually exist after the change, including:
 
 - Provisioning/setup command, usually `dip provision`.
-- Start/stop commands, such as `dip up` and `dip down`, when implemented, noting that `dip up` shows live logs from the main app container by default.
+- Start/stop commands, `dip up` and `dip down` (plain built-ins, never overridden), noting that `dip up` shows live logs from the main app container by default because it runs in the foreground; if a `logs` command was added for re-attaching to a backgrounded stack, document it and note it only tails recent output.
 - Dependency-install command, `dip install`, for Node.js-based recipes, and that it replaces `dip provision` for `package.json` updates.
 - Shell or package-manager pass-through commands, such as `dip shell`, `dip npm`, `dip pnpm`, or `dip yarn`, when implemented.
 - Test, lint, database, framework CLI, or service commands, such as `dip test`, `dip lint`, `dip psql`, `dip manage`, or `dip next`, when implemented.
@@ -356,10 +356,10 @@ alter default privileges in schema public grant select, insert, update, delete o
 
 `dip.yml` command set should include:
 
-- `provision`: create `.dockerdev/.env` from `.dockerdev/.env.example` when missing, build images, install dependencies, start `db` and `rest`, wait for Postgres, apply SQL files from `supabase/migrations/*.sql` or `db/migrations/*.sql` when present, and start `app`.
-- `up`: start the app stack and show live logs from `app` by default (see "Mandatory `dip up` log output").
+- `provision` (built-in, via the `provision:` section): create `.dockerdev/.env` from `.dockerdev/.env.example` when missing, build images, install dependencies, start `db` and `rest`, wait for Postgres, apply SQL files from `supabase/migrations/*.sql` or `db/migrations/*.sql` when present, and start `app`.
+- `up` (plain built-in, no `interaction` override): start the stack in the foreground and show live logs from `app` by default (see "Mandatory `dip up` log output").
 - `install`: install/update dependencies in `app` after `package.json` changes, without re-provisioning (see "Mandatory `dip install` command for dependency updates").
-- `down`: stop the app stack.
+- `down` (plain built-in, no `interaction` override): stop the app stack.
 - `shell`: open shell in `app`.
 - package-manager pass-through command (`npm`, `pnpm`, or `yarn`).
 - `next`: run Next.js CLI through the detected package manager.
@@ -385,10 +385,6 @@ interaction:
     command: bash
     compose:
       run_options: [no-deps]
-
-  up:
-    description: Start the stack and show app logs
-    command: dip compose up -d && dip compose logs -f --tail=100 app
 
   install:
     description: Install/update dependencies after package.json changes
@@ -462,8 +458,8 @@ Recommended defaults:
 
 `dip.yml` command set should include:
 
-- `provision`: install dependencies (`npm ci` or package-manager equivalent)
-- `up`: start the app stack and show live logs from `app` by default (see "Mandatory `dip up` log output")
+- `provision` (built-in, via the `provision:` section): install dependencies (`npm ci` or package-manager equivalent)
+- `up` (plain built-in, no `interaction` override): start the stack in the foreground and show live logs from `app` by default (see "Mandatory `dip up` log output")
 - `install`: install/update dependencies in `app` after `package.json` changes (see "Mandatory `dip install` command for dependency updates")
 - `shell`: open shell in app service
 - `npm`: pass-through package manager command
@@ -524,7 +520,7 @@ Always include:
 
 After `dip provision` (which runs `dip compose` sub-commands) and/or `dip up` finishes successfully, always explain to the user, in plain terms, how to use the resulting workflow day-to-day:
 
-- `dip up`: starts the app stack for daily development and shows live logs from the main app container by default; explain when to use it (e.g., after the first `dip provision`, or whenever they want the services running again) and that it does not re-provision or reinstall dependencies.
+- `dip up` (plain, built-in — never overridden with a custom `interaction` entry): starts the app stack in the foreground for daily development and shows live logs from the main app container from the moment it starts; explain when to use it (e.g., after the first `dip provision`, or whenever they want the services running again) and that it does not re-provision or reinstall dependencies. If a `logs` command was added for re-attaching to an already-backgrounded stack, explain that it only tails recent output and does not replay full history.
 - `dip install` (Node.js-based recipes): explain that after editing `package.json`, they should run `dip install` to install/update dependencies, instead of re-running `dip provision`.
 - Re-running `dip provision`: explain when they need to run it again — e.g., after pulling changes that alter environment variables, migrations, or the `dip.yml`/`.dockerdev/` configuration itself — versus using `dip install` for dependency changes or `dip up` for a normal day-to-day start.
 - `dip down`: explain that it stops and removes the running containers for this stack, and when to use it (e.g., shutting down for the day, freeing ports, or before switching branches with a different stack).
@@ -533,17 +529,23 @@ Keep this explanation concise and tailored to the commands actually defined in t
 
 ## Mandatory `dip up` log output
 
-By default, `dip up` must show logs from the project's main application container (the service that owns the runtime — e.g. `app` or `web`), so the developer sees live startup/dev-server output without a separate command.
+`up`, `build`, `down`, and `provision` are reserved built-in `dip` commands (confirmed via `dip help` on dip 8.4.0: `build`, `compose`, `console`, `down`, `help`, `infra`, `ktl`, `ls`, `provision`, `run`, `ssh`, `stop`, `tree`, `up`, `validate`, `version`). An `interaction` entry in `dip.yml` named `up` (or any other reserved name) is silently ignored — `dip` runs its built-in instead, which is a plain foreground `docker compose up [SERVICE]`. Never add an `interaction` entry named `up`, `build`, `down`, or `provision`.
 
-- Implement this as an `up` entry in `dip.yml` (under `interaction`, or `shortcuts` if the installed `dip` version reserves `up` as a built-in and supports overriding it there) that starts the stack detached and then follows logs from the main service, e.g.:
+Before writing any `interaction` command name into `dip.yml`, run `dip help` (or `dip ls`/`dip tree` in the target environment) and confirm the name is not already a built-in. If it is, do not try to override it — pick a different, unused name instead.
+
+Default workflow (no custom wrapper needed):
+
+- `dip up` (plain, built-in): starts the stack in the foreground and streams logs from the main app container from the moment it starts. This is sufficient by default — do not add a custom `up:` entry to replace it.
+- `dip down` (plain, built-in): stops the stack.
+- If a developer wants to run the stack detached (`-d`) instead, or wants to re-attach to logs from a container that was already started in the background, add a separate, non-reserved command such as `logs`:
 
   ```yaml
-  up:
-    description: Start the stack and show app logs
-    command: dip compose up -d && dip compose logs -f --tail=100 app
+  logs:
+    description: Tail logs from the app container
+    command: dip compose logs -f --tail=100 app
   ```
 
-- If the installed `dip` version does not allow overriding `up` directly, add a `logs` command (`dip compose logs -f --tail=100 <main-service>`) and document that `dip up` is immediately followed by `dip logs` as the default workflow.
+  Document the difference clearly: `dip up` is a foreground start that streams logs from a cold start; `dip up -d` backgrounds the stack without printing logs; `dip logs` tails the current output of an already-running container, but does not replay history the way a cold `dip up` does — if the container has been running quietly in the background, `dip logs --tail=100` only shows the last 100 lines, not a guaranteed full replay.
 - Keep the service name in sync with whichever service is the main app service in each recipe (`app` for Next.js/Node.js, `web` for Django).
 - Document this behavior in the README alongside other `dip` commands.
 
