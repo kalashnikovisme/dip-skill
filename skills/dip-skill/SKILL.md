@@ -188,7 +188,8 @@ Whenever this skill creates or changes `dip.yml`, Docker Compose files, Dockerfi
 The README update must document the commands that actually exist after the change, including:
 
 - Provisioning/setup command, usually `dip provision`.
-- Start/stop commands, such as `dip up` and `dip down`, when implemented.
+- Start/stop commands, such as `dip up` and `dip down`, when implemented, noting that `dip up` shows live logs from the main app container by default.
+- Dependency-install command, `dip install`, for Node.js-based recipes, and that it replaces `dip provision` for `package.json` updates.
 - Shell or package-manager pass-through commands, such as `dip shell`, `dip npm`, `dip pnpm`, or `dip yarn`, when implemented.
 - Test, lint, database, framework CLI, or service commands, such as `dip test`, `dip lint`, `dip psql`, `dip manage`, or `dip next`, when implemented.
 
@@ -356,7 +357,8 @@ alter default privileges in schema public grant select, insert, update, delete o
 `dip.yml` command set should include:
 
 - `provision`: create `.dockerdev/.env` from `.dockerdev/.env.example` when missing, build images, install dependencies, start `db` and `rest`, wait for Postgres, apply SQL files from `supabase/migrations/*.sql` or `db/migrations/*.sql` when present, and start `app`.
-- `up`: start the app stack.
+- `up`: start the app stack and show live logs from `app` by default (see "Mandatory `dip up` log output").
+- `install`: install/update dependencies in `app` after `package.json` changes, without re-provisioning (see "Mandatory `dip install` command for dependency updates").
 - `down`: stop the app stack.
 - `shell`: open shell in `app`.
 - package-manager pass-through command (`npm`, `pnpm`, or `yarn`).
@@ -381,6 +383,17 @@ interaction:
     description: Open a shell in the app container
     service: app
     command: bash
+    compose:
+      run_options: [no-deps]
+
+  up:
+    description: Start the stack and show app logs
+    command: dip compose up -d && dip compose logs -f --tail=100 app
+
+  install:
+    description: Install/update dependencies after package.json changes
+    service: app
+    command: npm install
     compose:
       run_options: [no-deps]
 
@@ -422,7 +435,7 @@ provision:
 Adjust the example before writing it:
 
 - Replace `project_name` with a sanitized value from `package.json` `name`.
-- Replace package-manager commands according to lockfile detection.
+- Replace package-manager commands according to lockfile detection, including the `install` command (`npm install`, `pnpm install`, or `yarn install`).
 - If no `lint` script exists, omit `lint`.
 - If no useful `test` script exists, omit `test` and mention which scripts were available.
 - If `next.config.*` includes custom image or env settings, leave them unchanged.
@@ -450,6 +463,8 @@ Recommended defaults:
 `dip.yml` command set should include:
 
 - `provision`: install dependencies (`npm ci` or package-manager equivalent)
+- `up`: start the app stack and show live logs from `app` by default (see "Mandatory `dip up` log output")
+- `install`: install/update dependencies in `app` after `package.json` changes (see "Mandatory `dip install` command for dependency updates")
 - `shell`: open shell in app service
 - `npm`: pass-through package manager command
 - `test`: run project tests
@@ -509,11 +524,46 @@ Always include:
 
 After `dip provision` (which runs `dip compose` sub-commands) and/or `dip up` finishes successfully, always explain to the user, in plain terms, how to use the resulting workflow day-to-day:
 
-- `dip up`: starts the app stack in the background for daily development; explain when to use it (e.g., after the first `dip provision`, or whenever they want the services running again) and that it does not re-provision or reinstall dependencies.
-- Re-running `dip provision`: explain when they need to run it again — e.g., after pulling changes that alter dependencies, environment variables, migrations, or the `dip.yml`/`.dockerdev/` configuration itself — versus just using `dip up` for a normal day-to-day start.
+- `dip up`: starts the app stack for daily development and shows live logs from the main app container by default; explain when to use it (e.g., after the first `dip provision`, or whenever they want the services running again) and that it does not re-provision or reinstall dependencies.
+- `dip install` (Node.js-based recipes): explain that after editing `package.json`, they should run `dip install` to install/update dependencies, instead of re-running `dip provision`.
+- Re-running `dip provision`: explain when they need to run it again — e.g., after pulling changes that alter environment variables, migrations, or the `dip.yml`/`.dockerdev/` configuration itself — versus using `dip install` for dependency changes or `dip up` for a normal day-to-day start.
 - `dip down`: explain that it stops and removes the running containers for this stack, and when to use it (e.g., shutting down for the day, freeing ports, or before switching branches with a different stack).
 
 Keep this explanation concise and tailored to the commands actually defined in the project's `dip.yml`.
+
+## Mandatory `dip up` log output
+
+By default, `dip up` must show logs from the project's main application container (the service that owns the runtime — e.g. `app` or `web`), so the developer sees live startup/dev-server output without a separate command.
+
+- Implement this as an `up` entry in `dip.yml` (under `interaction`, or `shortcuts` if the installed `dip` version reserves `up` as a built-in and supports overriding it there) that starts the stack detached and then follows logs from the main service, e.g.:
+
+  ```yaml
+  up:
+    description: Start the stack and show app logs
+    command: dip compose up -d && dip compose logs -f --tail=100 app
+  ```
+
+- If the installed `dip` version does not allow overriding `up` directly, add a `logs` command (`dip compose logs -f --tail=100 <main-service>`) and document that `dip up` is immediately followed by `dip logs` as the default workflow.
+- Keep the service name in sync with whichever service is the main app service in each recipe (`app` for Next.js/Node.js, `web` for Django).
+- Document this behavior in the README alongside other `dip` commands.
+
+## Mandatory `dip install` command for dependency updates
+
+Whenever this skill sets up or updates a Node.js-based recipe (Next.js or generic Node.js), it must provide a `dip install` command so developers never need to re-run `dip provision` just because `package.json` changed.
+
+- Add an `install` entry to `dip.yml` that runs the detected package manager's install command inside the app container without rebuilding the whole environment, e.g.:
+
+  ```yaml
+  install:
+    description: Install/update dependencies after package.json changes
+    service: app
+    command: npm install
+    compose:
+      run_options: [no-deps]
+  ```
+
+- Use the package-manager-specific install command from the lockfile detection rules (`npm install`, `pnpm install`, `yarn install`), not the frozen/CI variant, since this command is meant to update the lockfile when `package.json` changes.
+- Document in the README and in the day-to-day usage explanation that after editing `package.json`, developers should run `dip install`, not `dip provision`. Reserve `dip provision` for first-time setup or changes to the `dip`/Docker configuration itself.
 
 ## Mandatory port check after `dip up`
 

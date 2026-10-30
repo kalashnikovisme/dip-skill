@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.13.0
+
+- `dip up` must show live logs from the main app container by default.
+- Added a mandatory `dip install` command for Node.js-based recipes so developers run it after `package.json` changes instead of re-running `dip provision`.
+
 ## 0.12.0
 
 - Added a mandatory port check after `dip up`: verify each reported host port actually responds before declaring the stack ready, diagnosing and fixing any port that doesn't respond, and reporting the check result to the user.
